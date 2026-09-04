@@ -12,15 +12,18 @@ import ru.practicum.moviehub.store.MoviesStore;
 import java.io.IOException;
 import java.io.InputStream;
 import java.nio.charset.StandardCharsets;
+import java.text.ParseException;
 import java.time.LocalDate;
 import java.util.ArrayList;
 import java.util.List;
 
 public class MoviesHandler extends BaseHttpHandler {
     private final MoviesStore moviesStore;
+    private final Gson gson;
 
     public MoviesHandler(MoviesStore moviesStore) {
         this.moviesStore = moviesStore;
+        gson = new Gson();
     }
 
     @Override
@@ -52,23 +55,29 @@ public class MoviesHandler extends BaseHttpHandler {
     }
 
     private void sendAllByFilter(HttpExchange exchange) throws IOException {
-
-        int year = parseYearParam(exchange);
+        int year;
+        try {
+            year = parseYearParam(exchange);
+        } catch (ParseException e) {
+            sendJson(exchange, 400, e.getMessage());
+            return;
+        }
 
         if (year == -1) {
-            sendJson(exchange, 200, new Gson().toJson(moviesStore.getMovies()));
+            sendJson(exchange, 200, gson.toJson(moviesStore.getMovies()));
         } else {
             if (!isValidYear(year)) {
                 sendJson(exchange, 400, "Некорректный параметр запроса — 'year'");
+                return;
             }
-            sendJson(exchange, 200, new Gson().toJson(moviesStore.getByYear(year)));
+            sendJson(exchange, 200, gson.toJson(moviesStore.getByYear(year)));
         }
     }
 
     private void sendOne(HttpExchange exchange, String idStr) throws IOException {
         try {
             int id = Integer.parseInt(idStr);
-            sendJson(exchange, 200, new Gson().toJson(moviesStore.getById(id)));
+            sendJson(exchange, 200, gson.toJson(moviesStore.getById(id)));
         } catch (NumberFormatException e) {
             sendJson(exchange, 400, "Некорректный ID");
         } catch (MovieNotFoundException e) {
@@ -83,7 +92,6 @@ public class MoviesHandler extends BaseHttpHandler {
             sendJson(exchange, 415, "Неподдерживаемый тип");
             return;
         }
-        Gson gson = new Gson();
         try (InputStream inputStream = exchange.getRequestBody()) {
             String body = new String(inputStream.readAllBytes(), StandardCharsets.UTF_8);
 
@@ -93,13 +101,13 @@ public class MoviesHandler extends BaseHttpHandler {
                 sendJson(exchange, 422, gson.toJson(errorResponse));
                 return;
             }
-            Movie newMovie = new Gson().fromJson(body, Movie.class);
+            Movie newMovie = gson.fromJson(body, Movie.class);
             moviesStore.addMovies(newMovie);
         }
 
         Movie createdMovie;
         try {
-            createdMovie = moviesStore.getById(MoviesStore.getNextId() - 1);
+            createdMovie = moviesStore.getById(moviesStore.getNextId() - 1);
         } catch (MovieNotFoundException e) {
             sendJson(exchange, 500, "Ошибка сохранения. Обратитесь в поддержку.");
             return;
@@ -146,7 +154,6 @@ public class MoviesHandler extends BaseHttpHandler {
             int year = yearElement.getAsInt();
             if (!isValidYear(year)) {
                 errors.add("Год фильма указан неверно");
-                System.out.println(year);
             }
         } else {
             errors.add("Отсутствует поле year");
@@ -154,7 +161,7 @@ public class MoviesHandler extends BaseHttpHandler {
         return errors;
     }
 
-    private int parseYearParam(HttpExchange exchange) throws IOException {
+    private int parseYearParam(HttpExchange exchange) throws ParseException {
         int year = -1;
         String query = exchange.getRequestURI().getQuery();
         if (query == null) {
@@ -163,18 +170,18 @@ public class MoviesHandler extends BaseHttpHandler {
 
         String[] filterTokens = exchange.getRequestURI().getQuery().split("&");
         if (filterTokens.length > 1) {
-            sendJson(exchange, 400, "Неподдерживаемое количество параметров");
+            throw new ParseException("Неподдерживаемое количество параметров", 0);
         }
 
         if (filterTokens.length == 1) {
             String[] params = filterTokens[0].split("=");
             if (params.length != 2 || !params[0].equals("year")) {
-                sendJson(exchange, 400, "Некорректный параметр запроса — 'year'");
+                throw new ParseException("Некорректный параметр запроса — 'year'", 0);
             }
             try {
                 year = Integer.parseInt(params[1]);
             } catch (NumberFormatException e) {
-                sendJson(exchange, 400, "Некорректный параметр запроса — 'year'");
+                throw new ParseException("Некорректный параметр запроса — 'year'", 0);
             }
         }
         return year;

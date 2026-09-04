@@ -27,14 +27,13 @@ import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
 public class MoviesApiTest {
-    private static final String BASE = "http://localhost:8080"; // !!! добавьте базовую часть URL
+    private static final String BASE = "http://localhost:8080";
     private static final String CONTENT_TYPE = "application/json; charset=UTF-8";
 
     private static MoviesServer server;
     private static HttpClient client;
     private static MoviesStore moviesStore;
     private static HttpResponse.BodyHandler<String> bodyHandler;
-
 
     @BeforeAll
     static void beforeAll() {
@@ -87,7 +86,7 @@ public class MoviesApiTest {
         Movie movie = new Movie("Служебный роман", 1977);
         moviesStore.addMovies(movie);
 
-        int idRequest = MoviesStore.getNextId() - 1;
+        int idRequest = moviesStore.getNextId() - 1;
         HttpRequest req = HttpRequest.newBuilder().GET().uri(URI.create(BASE + "/movies/" + idRequest)).build();
         HttpResponse<String> resp = client.send(req, bodyHandler);
 
@@ -160,7 +159,7 @@ public class MoviesApiTest {
 
         Movie addedMovie = new Gson().fromJson(resp.body().trim(), Movie.class);
         assertEquals(1, moviesStore.getMovies().size(), "Пустое хранилище стало непустым");
-        assertEquals(addedMovie, moviesStore.getById(MoviesStore.getNextId() - 1),
+        assertEquals(addedMovie, moviesStore.getById(moviesStore.getNextId() - 1),
             "Ответ соответствует значению в хранилище");
     }
 

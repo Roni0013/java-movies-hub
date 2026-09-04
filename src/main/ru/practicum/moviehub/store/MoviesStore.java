@@ -4,47 +4,50 @@ import ru.practicum.moviehub.exception.MovieNotFoundException;
 import ru.practicum.moviehub.model.Movie;
 
 import java.util.ArrayList;
+import java.util.HashMap;
 import java.util.List;
-import java.util.stream.Collectors;
+import java.util.Map;
 
 public class MoviesStore {
-    private static int autoincrement;
-    private final List<Movie> movies;
+    private int autoincrement;
+    private final HashMap<Integer, Movie> movies;
 
     public MoviesStore() {
         autoincrement = 1;
-        this.movies = new ArrayList<>();
+        this.movies = new HashMap<>();
     }
 
     public List<Movie> getMovies() {
-        return List.copyOf(movies);
+        return Map.copyOf(movies).values().stream().toList();
     }
 
     public void addMovies(Movie movie) {
-        movies.add(new Movie(autoincrement++, movie.getTitle(), movie.getYear()));
+        movies.put(autoincrement, new Movie(autoincrement, movie.getTitle(), movie.getYear()));
+        autoincrement++;
     }
 
     public Movie getById(int id) throws MovieNotFoundException {
-        for (Movie movie : movies) {
-            if (movie.getId() == id) {
-                return movie;
-            }
+        if (!movies.containsKey(id)) {
+            throw new MovieNotFoundException();
         }
-        throw new MovieNotFoundException();
+        return movies.get(id);
     }
 
     public List<Movie> getByYear(int year) {
-        return movies.stream().filter(movie -> movie.getYear() == year).collect(Collectors.toList());
+        List<Movie> moviesResult = new ArrayList<>();
+        for (Movie movie : movies.values()) {
+            if (movie.getYear() == year) {
+                moviesResult.add(movie);
+            }
+        }
+        return moviesResult;
     }
 
     public void deleteById(int id) throws MovieNotFoundException {
-        for (int i = 0; i < movies.size(); i++) {
-            if (movies.get(i).getId() == id) {
-                movies.remove(i);
-                return;
-            }
+        if (!movies.containsKey(id)) {
+            throw new MovieNotFoundException();
         }
-        throw new MovieNotFoundException();
+        movies.remove(id);
     }
 
     public void clear() {
@@ -52,7 +55,7 @@ public class MoviesStore {
         autoincrement = 1;
     }
 
-    public static int getNextId() {
+    public int getNextId() {
         return autoincrement;
     }
 }
